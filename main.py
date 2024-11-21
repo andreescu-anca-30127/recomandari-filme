@@ -11,8 +11,8 @@ import ast
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics.pairwise import cosine_similarity
 pd.set_option('display.max.colwidth', None)
-pd.set_option('display.max_rows', 80)#randuri
-pd.set_option('display.max_columns', 15)#coloanae
+pd.set_option('display.max_rows', None)#randuri
+pd.set_option('display.max_columns', None)#coloanae
 
 moviesdata = pd.read_csv(r'C:\movies_metadata.csv', low_memory=False)
 ratings = pd.read_csv(r'C:\ratings.csv', low_memory=False)
@@ -20,6 +20,8 @@ keywords = pd.read_csv(r'C:\keywords.csv', low_memory=False)
 
 print(moviesdata.columns)
 print(keywords.columns)
+
+
 
 # # Elimină rândurile cu valori NaN sau nevalide în coloana 'id'
 moviesdata = moviesdata[moviesdata['id'].notna()]
@@ -78,7 +80,8 @@ def recommend_movies(movie_title, top_n=5):
     similarities = matrice[movie_idx]
     similar_movies = pd.DataFrame({
         "title": movies["title"],
-        "similarity": similarities
+        "similarity": similarities,
+        "genres":movies["genres"]
     })
     similar_movies = similar_movies[similar_movies.index != movie_idx]
     similar_movies = similar_movies.sort_values(by="similarity", ascending=False)
@@ -100,20 +103,23 @@ def recommend_movies(movie_title, top_n=5):
 
 #consola
 if __name__ == "__main__":
+    print("Recomandari filme bazate pe genuri si teme, Usercase1")
     while True:
         movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile sau scrie exit pentru a opri rularea:")
         if movie_title.lower() == "exit":
-            print("Program închis.")
+            print("Multumesc!Programul a fost închis.")
             break
         try:
             recommendations = recommend_movies(movie_title)
-            print(f"Recomandarile pentru filmul '{movie_title}'")
+            print(f"Recomandarile pentru filmul cu titlu'{movie_title}'")
             print(recommendations)
 
         except ValueError as e:
             print(e)
-            print("Te rog sa introduci alt nume de film")
+            print("Te rog sa introduci alt nume de film\n")
 
 
+#Usecase2
+#SVD - pentru a gasi filme preferate de utilizatori asemanatori~ collaborative filter
 
 
