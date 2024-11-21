@@ -54,14 +54,14 @@ movies = movies[movies["genres"].map(len) > 0]  # Filme cu genuri valide
 movies = movies[movies["keywords"].map(len) > 0]  # Filme cu keywords valide
 movies = movies.reset_index(drop=True)
 #
-print("numar total de filme dupa filtrare", movies.shape[0])
+# print("numar total de filme dupa filtrare", movies.shape[0])
 onehotencoding = MultiLabelBinarizer()
 vector_genres = onehotencoding.fit_transform(movies["genres"])
 onehotencondingkeywords=MultiLabelBinarizer()
 keywords_vector= onehotencondingkeywords.fit_transform(movies["keywords"])
-
-print("dimnesiunea vector_genres", vector_genres.shape)
-print("dimensiunea keywords_vector", keywords_vector.shape)
+#
+# print("dimnesiunea vector_genres", vector_genres.shape)
+# print("dimensiunea keywords_vector", keywords_vector.shape)
 assert vector_genres.shape[0] == keywords_vector.shape[0], "dimensiuni nealiniate"
 marire_vector_genres =2* vector_genres
 marire_vector_keywords= 1*keywords_vector
@@ -73,7 +73,7 @@ def recommend_movies(movie_title, top_n=5):
     try:
         movie_idx = movies[movies["title"] == movie_title].index[0]
     except IndexError:
-        return "Filmul nu a fost găsit."
+        raise ValueError(f"Filmul '{movie_title}' nu a fost găsit.")
 
     similarities = matrice[movie_idx]
     similar_movies = pd.DataFrame({
@@ -85,19 +85,34 @@ def recommend_movies(movie_title, top_n=5):
     return similar_movies.head(top_n)
 
 #testare
-recommendations = recommend_movies("Inception", top_n=5)
-print(recommendations)
-idx_inception = movies[movies["title"] == "Inception"].index[0]
-idx_paycheck = movies[movies["title"] == "Paycheck"].index[0]
+# recommendations = recommend_movies("Inception", top_n=5)
+# print(recommendations)
+# idx_inception = movies[movies["title"] == "Inception"].index[0]
+# idx_paycheck = movies[movies["title"] == "Paycheck"].index[0]
 
-# verificare personaa
-print("Vector genuri pentru Inception:", vector_genres[idx_inception])
-print("Vector genuri pentru Paycheck:", vector_genres[idx_paycheck])
+# # verificare personaa
+# print("Vector genuri pentru Inception:", vector_genres[idx_inception])
+# print("Vector genuri pentru Paycheck:", vector_genres[idx_paycheck])
+#
+# # Compara  vectorii
+# print("Sunt vectorii identici?", (vector_genres[idx_inception] == vector_genres[idx_paycheck]).all())
 
-# Compara  vectorii
-print("Sunt vectorii identici?", (vector_genres[idx_inception] == vector_genres[idx_paycheck]).all())
 
+#consola
+if __name__ == "__main__":
+    while True:
+        movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile sau scrie exit pentru a opri rularea:")
+        if movie_title.lower() == "exit":
+            print("Program închis.")
+            break
+        try:
+            recommendations = recommend_movies(movie_title)
+            print(f"Recomandarile pentru filmul '{movie_title}'")
+            print(recommendations)
 
+        except ValueError as e:
+            print(e)
+            print("Te rog sa introduci alt nume de film")
 
 
 
