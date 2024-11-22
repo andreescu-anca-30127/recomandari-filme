@@ -10,6 +10,8 @@ import pandas as pd
 import ast
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics.pairwise import cosine_similarity
+from surprise import SVD
+
 pd.set_option('display.max.colwidth', None)
 pd.set_option('display.max_rows', None)#randuri
 pd.set_option('display.max_columns', None)#coloanae
