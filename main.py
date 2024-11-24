@@ -10,7 +10,8 @@ import pandas as pd
 import ast
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics.pairwise import cosine_similarity
-from surprise import SVD
+from surprise import SVD, Dataset, Reader
+from surprise.model_selection import train_test_split
 
 pd.set_option('display.max.colwidth', None)
 pd.set_option('display.max_rows', None)#randuri
@@ -53,41 +54,42 @@ def extract_genres(genres_column):
 # # Aplică funcția de preprocesare
 movies["genres"] = movies["genres"].apply(extract_genres)
 #
+print("a facut functia de extragere de genuri")
 # Elimină filmele fără genuri
 movies = movies[movies["genres"].map(len) > 0]  # Filme cu genuri valide
 movies = movies[movies["keywords"].map(len) > 0]  # Filme cu keywords valide
 movies = movies.reset_index(drop=True)
 #
-# print("numar total de filme dupa filtrare", movies.shape[0])
-onehotencoding = MultiLabelBinarizer()
-vector_genres = onehotencoding.fit_transform(movies["genres"])
-onehotencondingkeywords=MultiLabelBinarizer()
-keywords_vector= onehotencondingkeywords.fit_transform(movies["keywords"])
+# # print("numar total de filme dupa filtrare", movies.shape[0])
+# onehotencoding = MultiLabelBinarizer()
+# vector_genres = onehotencoding.fit_transform(movies["genres"])
+# onehotencondingkeywords=MultiLabelBinarizer()
+# keywords_vector= onehotencondingkeywords.fit_transform(movies["keywords"])
 #
 # print("dimnesiunea vector_genres", vector_genres.shape)
 # print("dimensiunea keywords_vector", keywords_vector.shape)
-assert vector_genres.shape[0] == keywords_vector.shape[0], "dimensiuni nealiniate"
-marire_vector_genres =2* vector_genres
-marire_vector_keywords= 1*keywords_vector
-combined_vector = np.hstack([marire_vector_keywords,marire_vector_genres])
+# assert vector_genres.shape[0] == keywords_vector.shape[0], "dimensiuni nealiniate"
+# marire_vector_genres =2* vector_genres
+# marire_vector_keywords= 1*keywords_vector
+# combined_vector = np.hstack([marire_vector_keywords,marire_vector_genres])
 # Matricea de similaritate
-matrice = cosine_similarity(combined_vector)
+# matrice = cosine_similarity(combined_vector)
  # Funcția pentru recomandări
-def recommend_movies(movie_title, top_n=5):
-    try:
-        movie_idx = movies[movies["title"] == movie_title].index[0]
-    except IndexError:
-        raise ValueError(f"Filmul '{movie_title}' nu a fost găsit.")
-
-    similarities = matrice[movie_idx]
-    similar_movies = pd.DataFrame({
-        "title": movies["title"],
-        "similarity": similarities,
-        "genres":movies["genres"]
-    })
-    similar_movies = similar_movies[similar_movies.index != movie_idx]
-    similar_movies = similar_movies.sort_values(by="similarity", ascending=False)
-    return similar_movies.head(top_n)
+# def recommend_movies(movie_title, top_n=5):
+#     try:
+#         movie_idx = movies[movies["title"] == movie_title].index[0]
+#     except IndexError:
+#         raise ValueError(f"Filmul '{movie_title}' nu a fost găsit.")
+#
+#     similarities = matrice[movie_idx]
+#     similar_movies = pd.DataFrame({
+#         "title": movies["title"],
+#         "similarity": similarities,
+#         "genres":movies["genres"]
+#     })
+#     similar_movies = similar_movies[similar_movies.index != movie_idx]
+#     similar_movies = similar_movies.sort_values(by="similarity", ascending=False)
+#     return similar_movies.head(top_n)
 
 #testare
 # recommendations = recommend_movies("Inception", top_n=5)
@@ -103,25 +105,80 @@ def recommend_movies(movie_title, top_n=5):
 # print("Sunt vectorii identici?", (vector_genres[idx_inception] == vector_genres[idx_paycheck]).all())
 
 
-#consola
-if __name__ == "__main__":
-    print("Recomandari filme bazate pe genuri si teme, Usercase1")
-    while True:
-        movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile sau scrie exit pentru a opri rularea:")
-        if movie_title.lower() == "exit":
-            print("Multumesc!Programul a fost închis.")
-            break
-        try:
-            recommendations = recommend_movies(movie_title)
-            print(f"Recomandarile pentru filmul cu titlu'{movie_title}'")
-            print(recommendations)
-
-        except ValueError as e:
-            print(e)
-            print("Te rog sa introduci alt nume de film\n")
-
-
 #Usecase2
 #SVD - pentru a gasi filme preferate de utilizatori asemanatori~ collaborative filter
+print("intra in svd")
+reader = Reader(rating_scale=(0.5,5))
+data = Dataset.load_from_df(ratings[['userId', 'movieId','rating']], reader)
+train, test =train_test_split(data, test_size=0.2)
+model = SVD()
+model.fit(train)
+print("a antrenat modeluk")
+def svd(user_id, n=10):
+    alreadyseen_movie= ratings[ratings['userId'] == user_id]['movieId'].tolist()
+    all = ratings['movieId'].unique()
+    unseen_movies = [movie for movie in all if movie not in alreadyseen_movie]
+    predictions = [model.predict(user_id, movie) for movie in unseen_movies]
 
+    predictions = sorted(predictions, key=lambda x: x.est, reverse=True)
+
+    # Selectează primele N recomandări
+    top_recommendations = [(pred.iid, pred.est) for pred in predictions[:n]]
+
+    return top_recommendations
+def precision(user_id, suggestion, s=10):
+    relevant_movies = ratings[(ratings['userId'] == user_id) & (ratings['rating'] > 3.5)]['movieId'].tolist()
+    relevant_movies_set= set(relevant_movies)
+    print(f"filme relevante pentru user {relevant_movies}")
+    recommended_movies = [movie_id for movie_id, _ in suggestion[:s]]
+    print(f"filme recomndate {recommended_movies}")
+
+    relevant_in_suggestion =set(recommended_movies) & relevant_movies_set
+    print(f"filme relevante in sugestii {relevant_in_suggestion}")
+    precision= len(relevant_in_suggestion)/s  if s>0 else 0
+    return precision
+
+#
+# user_id=2
+# top_reco = svd (user_id, n=10)
+# print(f"recomandari pe baza de user:{top_reco}")
+
+# #consola
+if __name__ == "__main__":
+    print("Recomandari filme bazate pe genuri si teme sau pe recomandarile altor useri")
+    print("Usercase1: Recomandari filme pentru un film dat, bazate pe teme si genuri")
+    print("Usercase2: Recomandari pentru un anume utilizator")
+    print("Exit: Tastati exit pentru parasirea programului")
+    while True:
+        your_choise = input("Te rog sa iti alegi optiunea Usercase1/Usercase2/Exit:")
+        if your_choise == "Usercase1":  # Adăugat `:`
+            movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile: ")
+        #     try:
+        #         recommendations = recommend_movies(movie_title)
+        #         print(f"Recomandarile pentru filmul cu titlu '{movie_title}' sunt:")
+        #
+        #
+        #     except ValueError as e:
+        #         print(e)
+        #         print("Te rog sa introduci alt nume de film.\n")
+
+        elif your_choise == "Usercase2":
+
+            try:
+
+                user_id = int(input("Introdu id-ul utilizatorului pentru care doresti sa se realizeze recomandarea:"))
+                top_reco = svd(user_id, n=10)
+                print("Recomandarile personalizate pentru utilizatorul ales sunt: ")
+                for title, score in top_reco:
+                    print(f"{title} - Scor: {score:.2f}")
+                precision = precision(user_id,top_reco,s=10)
+                print(f"precizia este:{precision:.2f}")
+            except ValueError as e:
+                    print(e)
+                    print("te rog sa introduci un id corect:")
+        elif your_choise =="Exit":
+            print("Multumesc!Programu urmeaza sa se inchida")
+            break
+        else:
+            print("Ati ales o optiune gresita va rog sa alegeti alta:")
 
