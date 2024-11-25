@@ -1,0 +1,12 @@
+Usecase1:
+-if the user does not enter a movie title when requested, they will receive a message informing them of the issue and asking for a valid movie title
+-if the user enters an incorrect or invalid movie title, they will be notified and asked to provide a correct title
+-the recommendations are provided for a specific movie, that movie will not be included in the list of recommendations
+-the recommended movies will be sorted in descending order of relevance, based on how closely they match the genre and theme of the original movie
+Usecase2:
+-when the user is asked to provide a user id but enters something other than a number, a messae will apper notifying them of the error and prompting them to enter a  valid numeric user ID
+-the movies are displayed in descending order, meaning the most relevant ones appear at the top of the list
+
+
+
+
