@@ -22,11 +22,20 @@ pd.set_option('display.max_columns', None)#coloanae
 moviesdata = pd.read_csv(r'C:\movies_metadata.csv', low_memory=False)
 # ratingss = pd.read_csv(r'C:\ratings.csv', low_memory=False)
 keywords = pd.read_csv(r'C:\keywords.csv', low_memory=False)
-ratingssmall =pd.read_csv(r'C:\ratings_small.csv')
-ratings = ratingssmall.groupby('movieId').filter(lambda x: len(x) >= 10)
+# ratingssmall =pd.read_csv(r'C:\ratings_small.csv')
+
+#convertire
+# Convert to Parquet
+ratings = pd.read_csv(r'C:\ratings.csv', low_memory=False)
+ratings.to_parquet('ratings.parquet')
+
+# Load the dataset when needed
+ratings = pd.read_parquet('ratings.parquet')
+ratings = ratings.groupby('movieId').filter(lambda x: len(x) >= 10)
+
+
 common_ids = set(ratings['movieId']).intersection(set(moviesdata['id']))
-print(f"Numărul de ID-uri comune: {len(common_ids)}")
-print(f"Exemple de ID-uri comune: {list(common_ids)[:10]}")
+
 movie_titles = dict(zip(moviesdata['id'], moviesdata['title']))
 print("Exemple din ratings:")
 print(ratings.head())
@@ -87,8 +96,8 @@ keywords_vector= onehotencondingkeywords.fit_transform(movies["keywords"])
 print("dimnesiunea vector_genres", vector_genres.shape)
 print("dimensiunea keywords_vector", keywords_vector.shape)
 assert vector_genres.shape[0] == keywords_vector.shape[0], "dimensiuni nealiniate"
-marire_vector_genres =2* vector_genres
-marire_vector_keywords= 1*keywords_vector
+marire_vector_genres = 2 * vector_genres
+marire_vector_keywords = 1*keywords_vector
 combined_vector = np.hstack([marire_vector_keywords,marire_vector_genres])
 # Matricea de similaritate
 matrice = cosine_similarity(combined_vector)
@@ -124,59 +133,105 @@ print("Sunt vectorii identici?", (vector_genres[idx_inception] == vector_genres[
 
 
 #Usecase2
-#SVD - pentru a gasi filme preferate de utilizatori asemanatori~ collaborative filter
+
 reader = Reader(rating_scale=(0.5,5)) #evaluare de utilizator de la 0.5 la 5
 data = Dataset.load_from_df(ratings[['userId', 'movieId','rating']], reader)
 train, test =train_test_split(data, test_size=0.2)
-sim_options = {
-    "name": "cosine",
-    "user_based": True,  #user-based collaborative filtering
-}
-model=KNNBasic(sim_options=sim_options, k=20)
+#KNN - pentru a gasi filme preferate de utilizatori asemanatori~ collaborative filter
+
+#SVD
+model=SVD()
 model.fit(train)
-def get_recommendations(model,train, user_id, s=10):
+def get_user_features(model, train):
+    # Get latent features for all users
+    n_users = train.n_users
+    user_features = np.array([model.pu[i] for i in range(n_users)])
+    return user_features
+
+# Extract user features
+user_features = get_user_features(model, train)
+
+def find_similar_users(user_id, user_features, train, k=5):
+
     inner_user_id = train.to_inner_uid(user_id)
+    target_user_features = user_features[inner_user_id].reshape(1, -1)
+    similarities = cosine_similarity(target_user_features, user_features).flatten()
+    similar_user_indices = np.argsort(-similarities)[1:k+1]
+    return similar_user_indices, similarities[similar_user_indices]
 
-    similar_users = model.get_neighbors(inner_user_id, k=10)
+def recommend_from_similar_users(similar_users, train, user_id, movie_titles, model, top_n=10):
+    # Movies already rated by the target user
+    inner_user_id = train.to_inner_uid(user_id)
+    rated_movies = {movie_id for movie_id, _ in train.ur[inner_user_id]}
+
+    # Aggregate recommendations from similar users
     recommended_movies = {}
-
-    for similar_user in similar_users:
-        user_ratings = train.ur[similar_user]
+    for sim_user in similar_users:
+        user_ratings = train.ur[sim_user]
         for movie_id, rating in user_ratings:
-            if movie_id  not in train.ur[inner_user_id]:
+            if movie_id not in rated_movies:  # Exclude movies already rated by the target user
+                predicted_rating = model.predict(user_id, train.to_raw_iid(movie_id)).est
                 if movie_id not in recommended_movies:
-                    recommended_movies[movie_id] = rating
+                    recommended_movies[movie_id] = predicted_rating
                 else:
-                    recommended_movies[movie_id] += rating
+                    recommended_movies[movie_id] += predicted_rating
 
-    sorted_movies = sorted(recommended_movies.items(), key=lambda x: x[1], reverse=True)
-    top_n_movies = sorted_movies[:s]
-    # print("=== Debugging pentru mapare ID-uri brute și titluri ===")
-    # for movie_id, score in sorted_movies[:s]:
-    #     raw_id = train.to_raw_iid(movie_id)
-    #     print(f"ID intern: {movie_id}, ID brut: {raw_id}")
-    #     if int(raw_id) in movie_titles:
-    #         print(f"Titlu găsit: {movie_titles[int(raw_id)]}")
-    #     else:
-    #         print(f"ID {raw_id} nu există în movie_titles")
+    # Sort movies by predicted rating
+    recommendations = sorted(recommended_movies.items(), key=lambda x: x[1], reverse=True)[:top_n]
+    return recommendations
+# sim_options = {
+#     "name": "cosine",
+#     "user_based": True,  #user-based collaborative filtering
+# }
+# model=KNNBasic(sim_options=sim_options, k=20)
+# model.fit(train)
+# def get_recommendations(model,train, user_id, s=10):
+#     inner_user_id = train.to_inner_uid(user_id)
+#
+#     similar_users = model.get_neighbors(inner_user_id, k=10)
+#     recommended_movies = {}
+#
+#     for similar_user in similar_users:
+#         user_ratings = train.ur[similar_user]
+#         for movie_id, rating in user_ratings:
+#             if movie_id  not in train.ur[inner_user_id]:
+#                 if movie_id not in recommended_movies:
+#                     recommended_movies[movie_id] = rating
+#                 else:
+#                     recommended_movies[movie_id] += rating
+#
+#     sorted_movies = sorted(recommended_movies.items(), key=lambda x: x[1], reverse=True)
+#     top_n_movies = sorted_movies[:s]
+#     top_n_movies = [
+#         (movie_titles.get(int(train.to_raw_iid(movie_id)), "Unknown Title"), score)
+#         for movie_id, score in top_n_movies
+#     ]
+#     return top_n_movies
+# def get_recommendations_svd(model, user_id, train, top_n=10):
+#     all_movie_ids= set(train.all_items())
+#     rated_movies = {movie_id for movie_id, _ in train.ur[train.to_inner_uid(user_id)]}
+#     recommendations =[]
+#     for movie_id in all_movie_ids -rated_movies:
+#         est_rating= model.predict(user_id,train.to_raw_iid(movie_id)).est
+#         recommendations.append((movie_id,est_rating))
+#     recommendations = sorted(recommendations, key=lambda x: x[1], reverse=True)[:top_n]
+#
+#
+#
+#     return recommendations
 
-    # Înlocuiește ID-ul cu titlul utilizând `movie_titles`
-    top_n_movies = [
-        (movie_titles.get(int(train.to_raw_iid(movie_id)), "Unknown Title"), score)
-        for movie_id, score in top_n_movies
-    ]
-    return top_n_movies
 
 
 # # #consola
-if __name__ == "__main__":
+if __name__ == "_main_":
     print("Recomandari filme bazate pe genuri si teme sau pe recomandarile altor useri")
     print("Usercase1: Recomandari filme pentru un film dat, bazate pe teme si genuri")
     print("Usercase2: Recomandari pentru un anume utilizator")
     print("Exit: Tastati exit pentru parasirea programului")
+
     while True:
         your_choise = input("Te rog sa iti alegi optiunea Usercase1/Usercase2/Exit:")
-        if your_choise == "Usercase1":  # Adăugat `:`
+        if your_choise == "Usercase1":
             movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile:")
             try:
                 recommendations = recommend_movies(movie_title)
@@ -196,20 +251,30 @@ if __name__ == "__main__":
             try:
 
                 user_id = int(input("Introdu id-ul utilizatorului pentru care doresti sa se realizeze recomandarea:"))
-                top_reco = get_recommendations(model, train, user_id, s=10)
-                print("Recomandarile personalizate pentru utilizatorul ales sunt: ")
+                if user_id not in ratings['userId'].unique():
+                    raise ValueError(f"ID-ul utilizatorului {user_id} nu există în baza de date.")
+
+                # Find similar users
+                similar_users, similarities = find_similar_users(user_id, user_features, train, k=5)
+
+                # Recommend based on similar users
+                top_reco = recommend_from_similar_users(similar_users, train, user_id, movie_titles, model, top_n=10)
+
+                print("Recomandarile personalizate pentru utilizatorul ales sunt:")
                 for movie_title, score in top_reco:
                     print(f"{movie_title} - Scor: {score:.2f}")
-                # precision = calc_precision(user_id,top_reco,s=10)
-                # print(f"precizia este:{precision:.2f}")
+
+
+
+            # print(f"precizia este:{precision:.2f}")
 
 
             except ValueError as e:
                     print(e)
                     print("te rog sa introduci un id corect:")
+
         elif your_choise =="Exit":
             print("Multumesc!Programu urmeaza sa se inchida")
             break
         else:
-            print("Ati ales o optiune gresita va rog sa alegeti alta:")
-
+            print("Ati ales o optiune gresita va rog sa alegeti alta")
