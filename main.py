@@ -155,7 +155,8 @@ def recommend_from_similar_users(similar_users, train, user_id, movie_titles, mo
     return recommendations
 
 #Consola
-if __name__ == " __main__":
+if __name__ == "__main__":
+
     print("Movie recmmendations based on genres, themes or other users suggestions")
     print("Usecase1: Reccomendations for a given movies, based on themes and genres")
     print("Usecase2: Reccomendations for a specific user")
