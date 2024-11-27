@@ -60,8 +60,8 @@ def extract_genres(genres_column):
 # # Aplică funcția de preprocesare
 movies["genres"] = movies["genres"].apply(extract_genres)
 #
-print("a facut functia de extragere de genuri")
-# Elimină filmele fără genuri
+print("The genres extractions was performed")
+# remove movies without genres
 movies = movies[movies["genres"].map(len) > 0]  # Filme cu genuri valide
 movies = movies[movies["keywords"].map(len) > 0]  # Filme cu keywords valide
 movies = movies.reset_index(drop=True)
@@ -82,7 +82,7 @@ def recommend_movies(movie_title, top_n=5):
     try:
         movie_idx = movies[movies["title"] == movie_title].index[0]
     except IndexError:
-        raise ValueError(f"Filmul '{movie_title}' nu a fost găsit.")
+        raise ValueError(f" The movie'{movie_title}' was not found.")
 
     similarities = matrice[movie_idx]
     similar_movies = pd.DataFrame({
@@ -113,8 +113,6 @@ print("Sunt vectorii identici?", (vector_genres[idx_inception] == vector_genres[
 reader = Reader(rating_scale=(0.5,5)) #evaluare de utilizator de la 0.5 la 5
 data = Dataset.load_from_df(ratings[['userId', 'movieId','rating']], reader)
 train, test =train_test_split(data, test_size=0.2)
-#KNN - pentru a gasi filme preferate de utilizatori asemanatori~ collaborative filter
-
 #SVD
 model = SVD()
 model.fit(train)
@@ -157,36 +155,36 @@ def recommend_from_similar_users(similar_users, train, user_id, movie_titles, mo
     return recommendations
 
 #Consola
-if __name__ == "_main_":
-    print("Recomandari filme bazate pe genuri si teme sau pe recomandarile altor useri")
-    print("Usercase1: Recomandari filme pentru un film dat, bazate pe teme si genuri")
-    print("Usercase2: Recomandari pentru un anume utilizator")
-    print("Exit: Tastati exit pentru parasirea programului")
+if __name__ == " __main__":
+    print("Movie recmmendations based on genres, themes or other users suggestions")
+    print("Usecase1: Reccomendations for a given movies, based on themes and genres")
+    print("Usecase2: Reccomendations for a specific user")
+    print("Exit: Type Exit to leave the program")
 
     while True:
-        your_choise = input("Te rog sa iti alegi optiunea Usercase1/Usercase2/Exit:")
+        your_choise = input("Please select your option  Usercase1/Usercase2/Exit:")
         if your_choise == "Usercase1":
-            movie_title = input("Te rog introdu numele filmului pentru care doresti recomandarile:")
+            movie_title = input("Please enter the name of the movie for which you want recommendations:")
             try:
                 recommendations = recommend_movies(movie_title)
-                print(f"Recomandarile pentru filmul cu titlu '{movie_title}' sunt:")
+                print(f"The recommendations for the movie titled '{movie_title}' are:")
                 for index, row in recommendations.iterrows():
                     print(
-                        f"Titlu: {row['title']}, Similaritate: {row['similarity']:.2f}, Genuri: {', '.join(row['genres'])}")
+                        f"Title: {row['title']}, Similarity: {row['similarity']:.2f}, Genres: {', '.join(row['genres'])}")
 
 
 
             except ValueError as e:
                 print(e)
-                print("Te rog sa introduci alt nume de film.\n")
+                print("Please enter another movie name.\n")
 
         elif your_choise == "Usercase2":
 
             try:
 
-                user_id = int(input("Introdu id-ul utilizatorului pentru care doresti sa se realizeze recomandarea:"))
+                user_id = int(input("Please enter the user ID for which the recommendation should be made:"))
                 if user_id not in ratings['userId'].unique():
-                    raise ValueError(f"ID-ul utilizatorului {user_id} nu există în baza de date.")
+                    raise ValueError(f"The user ID {user_id} does not exist in the dataset.")
 
                 # Find similar users
                 similar_users, similarities = find_similar_users(user_id, user_features, train, k=5)
@@ -194,24 +192,20 @@ if __name__ == "_main_":
                 # Recommend based on similar users
                 top_reco = recommend_from_similar_users(similar_users, train, user_id, movie_titles, model, top_n=10)
 
-                print("Recomandarile personalizate pentru utilizatorul ales sunt:")
-                for movie_title, score in top_reco:
-                    print(f"{movie_title} - Scor: {score:.2f}")
-
-
-
-            # print(f"precizia este:{precision:.2f}")
+                print("The personalized recommendations for the selected user are:")
+                for movie_id, score in top_reco:
+                    print(f"{movie_id} - Scor: {score:.2f}")
 
 
             except ValueError as e:
                     print(e)
-                    print("te rog sa introduci un id corect:")
+                    print("Please enter a valid user:")
 
         elif your_choise =="Exit":
-            print("Multumesc!Programu urmeaza sa se inchida")
+            print("Thank you! The program is about to close")
             break
         else:
-            print("Ati ales o optiune gresita va rog sa alegeti alta")
+            print("You have selected an incorrect option. Please choose another one")
 
 #SVD model
 # sim_options = {

@@ -10,3 +10,4 @@ Usecase2:
 
 
 
+-am rezolvat problme ad ememorie. initial in momentul in care foloseam baza de date :"ratings"si foloseam un model KNN pt usercase2, imi aparea eroare ca nu aveam suficienta memorie. 
