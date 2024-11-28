@@ -19,12 +19,12 @@ class TestUsercase(unittest.TestCase):
 
     def test_find_similar_users(self):
         similar_users, similarities = find_similar_users(self.user_id, user_features, train, k=5)
-        self.assertEqual(len(similar_users), 5, "The function should return exactly 5 similar users")
+        self.assertEqual(len(similar_users), 5, "The function should return  5 similar users")
 
     def test_recommend_from_similar_users(self):
         similar_users, _ = find_similar_users(self.user_id, user_features, train, k=5)
         recommendations = recommend_from_similar_users(similar_users, train, self.user_id, movie_titles, model, top_n=5)
-        self.assertEqual(len(recommendations), 5, "The function should return exactly 5 recommendations")
+        self.assertEqual(len(recommendations), 5, "The function should return  5 recommendations")
 
     def test_missing_data(self):
         incomplete_ratings = ratings.drop(columns=["movieId"])

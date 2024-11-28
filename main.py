@@ -10,6 +10,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics.pairwise import cosine_similarity
 from surprise import SVD, Dataset, Reader
 from surprise.model_selection import train_test_split
+from surprise import accuracy
 from surprise import KNNBasic
 
 pd.set_option('display.max.colwidth', None)
@@ -116,6 +117,9 @@ train, test =train_test_split(data, test_size=0.2)
 #SVD
 model = SVD()
 model.fit(train)
+prediction = model.test(test)
+print("RMSE:", accuracy.rmse(prediction))
+print("MAE:", accuracy.mae(prediction))
 def get_user_features(model, train):
 
     n_users = train.n_users
